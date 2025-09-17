@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 import { orderValidationSchema } from "../middleware/orderValidation.js";
 import orderModel from "../models/orderModel.js";
 import axios from "axios";
+import mongoose from "mongoose";
 const orderUpdateValidationSchema = orderValidationSchema.fork(
     Object.keys(orderValidationSchema.describe().keys),
     (schema) => schema.optional()
@@ -112,9 +113,111 @@ const update = async (req, res) => {
     }
 }
 
+// const getUserSpecific = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+
+//         // Validate MongoDB ObjectId
+//         if (!mongoose.Types.ObjectId.isValid(id)) {
+//             return res.status(400).json({ message: "Invalid user ID" });
+//         }
+
+//         const data = await orderModel.find({ userId: id });
+
+//         // If no data found, send empty array (not an error)
+//         if (!data || data.length === 0) {
+//             return res.status(200).json([]);
+//         }
+
+//         // Return the found data
+//         return res.status(200).json({
+//             message:"Data get successfully !",
+//             data
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         return res.status(500).json({ message: "Internal server error" });
+//     }
+// };
+
+
+
+
+
+
+
+
+const getUserSpecific = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "Invalid user ID" });
+        }
+
+        // Step 1: Fetch orders
+        const orders = await orderModel.find({ userId: id });
+
+        if (!orders || orders.length === 0) {
+            return res.status(200).json({ message: "No orders found", data: [] });
+        }
+
+        // Step 2: Extract all unique productIds from items[]
+        const productIdSet = new Set();
+
+        orders.forEach(order => {
+            order.items?.forEach(item => {
+                if (item.productId) {
+                    productIdSet.add(item.productId.toString());
+                }
+            });
+        });
+
+        const productIds = Array.from(productIdSet);
+
+        // Step 3: Fetch product details from Product Microservice
+        const productResponse = await axios.post('http://localhost:5000/api/products/productlist/getBulk_userSpecific', {
+            ids: productIds
+        });
+
+        const products = productResponse.data.products || [];
+
+        // Step 4: Map productId to product detail
+        const productMap = {};
+        products.forEach(prod => {
+            productMap[prod._id] = prod;
+        });
+
+        // Step 5: Attach product details to each item in orders
+        const enrichedOrders = orders.map(order => {
+            const orderObj = order.toObject();
+            orderObj.items = orderObj.items.map(item => {
+                const pid = item.productId?.toString();
+                return {
+                    ...item,
+                    productDetails: pid ? productMap[pid] || null : null
+                };
+            });
+            return orderObj;
+        });
+
+        return res.status(200).json({
+            message: "Data get successfully!",
+            data: enrichedOrders
+        });
+
+    } catch (error) {
+        console.error("getUserSpecific error:", error.message);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+
 export default {
     create,
     getOne,
     GetAll,
-    update
+    update,
+    getUserSpecific
 }

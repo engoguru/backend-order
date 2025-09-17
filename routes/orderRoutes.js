@@ -9,6 +9,8 @@ orderRoutes.get('/getAll',orderController.GetAll);
 
 orderRoutes.put('/update/:id',orderController.update);
 
+orderRoutes.get('/getUserOrder/:id',orderController.getUserSpecific)
+
 
 
 export default orderRoutes;
