@@ -66,23 +66,72 @@ const getOne = async (req, res) => {
 const GetAll = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const itemsPerPage = parseInt(req.query.itemsPerPage) || 50;
+        const itemsPerPage = parseInt(req.query.itemsPerPage) || 10;
+        const sortBy = req.query.sort || 'latest';
+        const searchTerm = req.query.search || '';
         const skip = (page - 1) * itemsPerPage;
-        const [data, totalCount] = Promise.all([
-            orderModel.find().skip(skip).limit(itemsPerPage),
-            orderModel.countDocuments()
-        ]);
+
+        const query = {};
+        if (searchTerm) {
+            query.$or = [
+                { productOrderId: { $regex: searchTerm, $options: 'i' } },
+                { paymentId: { $regex: searchTerm, $options: 'i' } }
+            ];
+        }
+
+        // Use an aggregation pipeline for consistent item-centric data
+        const aggregation = [];
+
+        // Stage 1: Initial match for search terms
+        if (Object.keys(query).length > 0) {
+            aggregation.push({ $match: query });
+        }
+
+        // Stage 2: Always unwind to create an item-centric view
+        aggregation.push({ $unwind: '$items' });
+
+        // Stage 3: Add a sort stage based on the sortBy parameter
+        let sortStage = {};
+        if (sortBy === 'price-asc') {
+            sortStage = { 'items.price': 1 };
+        } else if (sortBy === 'price-desc') {
+            sortStage = { 'items.price': -1 };
+        } else if (sortBy === 'oldest') {
+            sortStage = { createdAt: 1 };
+        } else { // 'latest' or default
+            sortStage = { createdAt: -1 };
+        }
+        aggregation.push({ $sort: sortStage });
+
+        // After sorting, add a field to make the item data consistent for the frontend
+        // The frontend expects `items` to be an array.
+        aggregation.push({
+            $addFields: { "items": ["$items"] }
+        });
+
+        // Stage 4: Use $facet to get both paginated data and total count
+        aggregation.push({
+            $facet: {
+                data: [{ $skip: skip }, { $limit: itemsPerPage }],
+                totalCount: [{ $count: 'count' }]
+            }
+        });
+
+        const result = await orderModel.aggregate(aggregation);
+
+        // Extract data and totalCount from the aggregation result
+        const data = result[0].data;
+        const totalCount = result[0].totalCount[0] ? result[0].totalCount[0].count : 0;
         const totalPages = Math.ceil(totalCount / itemsPerPage);
 
         res.status(200).json({
             message: "Order found",
-            data: data,
+            data,
             totalCount,
             totalPages,
             itemsPerPage,
             page
-
-        })
+        });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal server error" })
