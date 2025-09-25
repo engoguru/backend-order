@@ -23,15 +23,19 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true
       },
-      color:{
-         type: Number,
-        required: true
-      },
+      color: {
+  type: [String], // change from String to Array of Strings
+  trim: true
+},
        flavor: {
         type: String,
         trim: true
     },
-    }
+    discount: {
+        type: Number,
+        default: 0  
+    },
+  },
   ],
   totalPrice: {
     type: Number,
@@ -52,9 +56,7 @@ const orderSchema = new mongoose.Schema({
     required: true,
     enum: ['Pending', 'Paid', 'Failed']
   },
-  paymentId: {
-    type: String
-  },
+
     paymentId: {
     type: String,
     default: null },// default for clarity  },

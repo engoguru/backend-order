@@ -1,9 +1,10 @@
 import express from 'express';
 import orderController from '../controllers/orderController.js';
+import { authenticate } from '../middleware/authentication.js';
 const orderRoutes = express.Router();
 
 
-orderRoutes.post('/create',orderController.create);
+orderRoutes.post('/create',authenticate, orderController.create);
 orderRoutes.get('/getOne/:id',orderController.getOne);
 orderRoutes.get('/getAll',orderController.GetAll);
 

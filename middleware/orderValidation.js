@@ -22,14 +22,28 @@ export const orderValidationSchema = Joi.object({
           .positive()
           .precision(2)
           .required()
-          .label('Price')
-        ,
+          .label('Price'),
+
         size: Joi.string()
           .required()
           .label('Size'),
-      
-      })
 
+      color: Joi.array()
+  .items(Joi.string())
+  .optional()
+  .label('Color'),
+
+
+        flavor: Joi.string()
+          .optional()
+          .allow('', null)
+          .label('Flavor'),
+
+        discount: Joi.number()
+          .min(0)
+          .optional()
+          .label('Discount'),
+      })
     )
     .min(1)
     .required()
