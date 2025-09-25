@@ -9,37 +9,61 @@ const orderUpdateValidationSchema = orderValidationSchema.fork(
 );
 
 const updateStock_ProductService=async(items)=>{
-    console.log("pro",items)
+   
  await axios.post('http://localhost:5000/api/products/productList/updateStock', { items });
 
 }
-const sendNotification=async()=>{
-    await axios.post()
-}
+
+const sendNotification = async (token) => {
+  await axios.post(
+    "http://localhost:5000/api/notifications/notification/Notify",
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+};
+
+
+
 
 const create = async (req, res) => {
-    try {
-        console.log("order",req.body)
-        const { error } = orderValidationSchema.validate(req.body)
-        if (error) {
-            return res.status(400).json(error.details[0].message)
-        }
-        const data = new orderModel({
-            ...req.body
-        })
-        await data.save()
-        console.log(req.body.items)
-        await updateStock_ProductService(req.body.items)
-        // await sendNotification(req.body.userId)
-        res.status(200).json({
-            message: "Order created successfully",
-            data: data
-        })
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: "Internal server error" });
+  try {
+    const token = req.cookies?.token;
+
+    if (!token) {
+      return res.status(401).json({ message: "Missing token in cookie" });
     }
-}
+
+    const userId = req.user?.id;
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(400).json("Invalid userId in token");
+    }
+
+    const { error } = orderValidationSchema.validate(req.body);
+    if (error) {
+      console.log(error.details);
+      return res.status(400).json(error.details);
+    }
+
+    const data = new orderModel({ ...req.body });
+    await data.save();
+
+
+    await sendNotification(token); // ✅ Pass the token manually
+    await updateStock_ProductService(req.body.items);
+
+    res.status(200).json({
+      message: "Order created successfully",
+      data: data
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 const getOne = async (req, res) => {
     try {
         const id = req.params.id;
