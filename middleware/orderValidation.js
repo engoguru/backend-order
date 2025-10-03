@@ -75,8 +75,17 @@ export const orderValidationSchema = Joi.object({
     .optional()
     .label('Payment ID'),
 
-  deliveryAddress: Joi.string()
-    .min(5)
-    .required()
-    .label('Delivery Address')
+deliveryAddress: Joi.object({
+  name: Joi.string().allow('').required().label('Name'),
+  phone: Joi.string().allow('').required().label('Phone'),
+  address_line1: Joi.string().allow('').required().label('Address Line 1'),
+  address_line2: Joi.string().allow('').optional().label('Address Line 2'), // ✅ fix here
+  city: Joi.string().required().label('City'),
+  state: Joi.string().required().label('State'),
+  country: Joi.string().required().label('Country'),
+  pincode: Joi.string().required().label('Pincode'),
+  address_type: Joi.string().allow('').optional().label('Address Type'),
+  is_default: Joi.boolean().allow('').optional().label('Is Default')
+}).required().label('Delivery Address')
+
 });

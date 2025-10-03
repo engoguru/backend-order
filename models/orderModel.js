@@ -24,18 +24,18 @@ const orderSchema = new mongoose.Schema({
         required: true
       },
       color: {
-  type: [String], // change from String to Array of Strings
-  trim: true
-},
-       flavor: {
+        type: [String], // change from String to Array of Strings
+        trim: true
+      },
+      flavor: {
         type: String,
         trim: true
-    },
-    discount: {
+      },
+      discount: {
         type: Number,
-        default: 0  
+        default: 0
+      },
     },
-  },
   ],
   totalPrice: {
     type: Number,
@@ -57,13 +57,23 @@ const orderSchema = new mongoose.Schema({
     enum: ['Pending', 'Paid', 'Failed']
   },
 
-    paymentId: {
+  paymentId: {
     type: String,
-    default: null },// default for clarity  },
-  deliveryAddress: {
-    type: String,
-    required: true
-  }
+    default: null
+  },// default for clarity  },
+deliveryAddress: {
+  name: { type: String, required: true },
+  phone: { type: String, required: true },
+  address_line1: { type: String, required: true },
+  address_line2: { type: String },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
+  country: { type: String, required: true },
+  pincode: { type: String, required: true },
+  address_type: { type: String },
+  is_default: { type: Boolean }
+}
+
 }, { timestamps: true });
 
 const orderModel = mongoose.model('Order', orderSchema);
