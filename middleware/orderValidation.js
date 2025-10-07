@@ -8,9 +8,13 @@ export const orderValidationSchema = Joi.object({
   items: Joi.array()
     .items(
       Joi.object({
-        productId: Joi.string()
-          .required()
-          .label('Product ID'),
+ 
+    productId: Joi.object({
+  _id: Joi.string().required().label('Product ID')
+})
+  .unknown(true) // <-- allow other keys like productImages
+  .required()
+  .label('Product'), 
 
         quantity: Joi.number()
           .integer()
