@@ -11,6 +11,9 @@ orderRoutes.get('/getAll',orderController.GetAll);
 orderRoutes.put('/update/:id',orderController.update);
 
 orderRoutes.get('/getUserOrder/:id',orderController.getUserSpecific)
+// stats(admin)
+orderRoutes.get('/stats', orderController.getStats);
+orderRoutes.get('/status-counts', orderController.getStatusCounts);
 
 
 
