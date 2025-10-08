@@ -13,7 +13,7 @@ app.use(cookieParser());
 //  db connect
 connectDB()
 app.use(cors({
-  origin: 'http://localhost:5173', // ✅ Frontend URL
+  origin: ['http://localhost:5173', 'http://localhost:5174'], // ✅ Frontend URL
   credentials: true                // ✅ Required to send cookies/JWT
 }));
 

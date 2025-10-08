@@ -67,17 +67,57 @@ const getOne = async (req, res) => {
     if (!id || !isValidObjectId(id)) {
       return res.status(400).json("Invalid id");
     }
-    const data = await orderModel.findById(req.params.id);
+    let order = await orderModel.findById(id).lean(); // Use .lean() for a plain JS object
 
-    if (!data) {
+    if (!order) {
       return res.status(404).json({
         message: "Not found !",
       });
     }
+
+    // Step 1: Fetch Customer Details from User Service
+    if (order.userId && isValidObjectId(order.userId)) {
+      try {
+        const userResponse = await axios.get(`http://localhost:5000/api/users/account/getOne/${order.userId}`);
+        if (userResponse.data && userResponse.data.user) {
+          // We can attach the full user or just what's needed.
+          // The order already has shippingInfo, but this is good for enrichment.
+          order.customerDetails = userResponse.data.user;
+        }
+      } catch (userError) {
+        console.error("Failed to fetch user details for order:", userError.message);
+        // Continue without user details if the service fails
+      }
+    }
+
+    // Step 2: Enrich items with product details
+    if (order.items && order.items.length > 0) {
+      const productIds = order.items.map(item => item.productId).filter(id => isValidObjectId(id));
+      if (productIds.length > 0) {
+        try {
+          const productResponse = await axios.post("http://localhost:5000/api/products/productlist/getBulk_userSpecific", { ids: productIds });
+          const productsMap = new Map(productResponse.data.products.map(p => [p._id.toString(), p]));
+
+          order.items = order.items.map(item => {
+            const productDetails = productsMap.get(item.productId.toString());
+            return {
+              ...item,
+              productDetails: productDetails || null, // Attach full product details
+            };
+          });
+        } catch (productError) {
+          console.error("Failed to fetch product details for order items:", productError.message);
+          // Continue without product details if the service fails
+        }
+      }
+    }
+
+
     return res.status(200).json({
       message: "Order found",
-      data: data,
+      data: order,
     });
+
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal server error" });
@@ -113,15 +153,12 @@ const GetAll = async (req, res) => {
       aggregation.push({ $match: query });
     }
 
-    // Stage 2: Always unwind to create an item-centric view
-    aggregation.push({ $unwind: "$items" });
-
-    // Stage 3: Add a sort stage based on the sortBy parameter
+    // Stage 2: Add a sort stage based on the sortBy parameter
     let sortStage = {};
     if (sortBy === "price-asc") {
-      sortStage = { "items.price": 1 };
+      sortStage = { totalPrice: 1 };
     } else if (sortBy === "price-desc") {
-      sortStage = { "items.price": -1 };
+      sortStage = { totalPrice: -1 };
     } else if (sortBy === "oldest") {
       sortStage = { createdAt: 1 };
     } else {
@@ -129,12 +166,6 @@ const GetAll = async (req, res) => {
       sortStage = { createdAt: -1 };
     }
     aggregation.push({ $sort: sortStage });
-
-    // After sorting, add a field to make the item data consistent for the frontend
-    // The frontend expects `items` to be an array.
-    aggregation.push({
-      $addFields: { items: ["$items"] },
-    });
 
     // Stage 4: Use $facet to get both paginated data and total count
     aggregation.push({
