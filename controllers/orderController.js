@@ -27,6 +27,41 @@ const sendNotification = async (token) => {
   );
 };
 
+// const create = async (req, res) => {
+//   try {
+//     const token = req.cookies?.token;
+
+//     if (!token) {
+//       return res.status(401).json({ message: "Missing token in cookie" });
+//     }
+
+//     const userId = req.user?.id;
+//     if (!userId || !isValidObjectId(userId)) {
+//       return res.status(400).json("Invalid userId in token");
+//     }
+// // console.log(req.body,"ho56h")
+//     const { error } = orderValidationSchema.validate(req.body);
+//     if (error) {
+//       console.log(error.details);
+//       return res.status(400).json(error.details);
+//     }
+
+//     const data = new orderModel({ ...req.body });
+//     await data.save();
+
+//     await sendNotification(token); // ✅ Pass the token manually
+//     await updateStock_ProductService(req.body.items);
+
+//     res.status(200).json({
+//       message: "Order created successfully",
+//       data: data,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
 const create = async (req, res) => {
   try {
     const token = req.cookies?.token;
@@ -39,7 +74,7 @@ const create = async (req, res) => {
     if (!userId || !isValidObjectId(userId)) {
       return res.status(400).json("Invalid userId in token");
     }
-// console.log(req.body,"ho56h")
+
     const { error } = orderValidationSchema.validate(req.body);
     if (error) {
       console.log(error.details);
@@ -47,20 +82,36 @@ const create = async (req, res) => {
     }
 
     const data = new orderModel({ ...req.body });
-    await data.save();
-console.log(token,"ooppop");
-    await sendNotification(token); // ✅ Pass the token manually
-    await updateStock_ProductService(req.body.items);
+    await data.save(); //  Save first — core operation
 
+    //  Respond immediately to client
     res.status(200).json({
       message: "Order created successfully",
-      data: data,
+      data,
     });
+
+    //  Run background tasks after response is sent
+    setImmediate(() => {
+      Promise.all([
+        sendNotification(token),
+        updateStock_ProductService(req.body.items),
+      ])
+        .then(() => {
+          console.log(" Background tasks completed");
+        })
+        .catch((err) => {
+          console.error(" Background task error:", err);
+          // Optional: log to a service, retry queue, etc.
+        });
+    });
+    
   } catch (error) {
-    console.log(error);
+    console.error(" Error in order creation:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 const getOne = async (req, res) => {
   try {
     const id = req.params.id;
