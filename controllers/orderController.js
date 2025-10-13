@@ -48,7 +48,7 @@ const create = async (req, res) => {
 
     const data = new orderModel({ ...req.body });
     await data.save();
-
+console.log(token,"ooppop");
     await sendNotification(token); // ✅ Pass the token manually
     await updateStock_ProductService(req.body.items);
 
